@@ -1,0 +1,1303 @@
+
+/*
+*******************************************************************************************
+**                                                                                       **
+**     _____ ______   _______   ________  ________  ___  __    ___       ___             **
+**    |\   _ \  _   \|\  ___ \ |\   __  \|\   __  \|\  \|\  \ |\  \     |\  \            **
+**    \ \  \\\__\ \  \ \   __/|\ \  \|\  \ \  \|\  \ \  \/  /|\ \  \    \ \  \           **
+**     \ \  \\|__| \  \ \  \_|/_\ \   _  _\ \   __  \ \   ___  \ \  \    \ \  \          **
+**      \ \  \    \ \  \ \  \_|\ \ \  \\  \\ \  \ \  \ \  \\ \  \ \  \____\ \  \         **
+**       \ \__\    \ \__\ \_______\ \__\\ _\\ \__\ \__\ \__\\ \__\ \_______\ \__\        **
+**        \|__|     \|__|\|_______|\|__|\|__|\|__|\|__|\|__| \|__|\|_______|\|__|        **
+**                                                                                       **
+**                                                                                       **
+**                                                                                       **
+**    _____ ______   ________      ___    ___ _____ ______   ___  ___  ________          **
+**    |\   _ \  _   \|\   __  \    |\  \  /  /|\   _ \  _   \|\  \|\  \|\   ___  \       **
+**    \ \  \\\__\ \  \ \  \|\  \   \ \  \/  / | \  \\\__\ \  \ \  \\\  \ \  \\ \  \      **
+**     \ \  \\|__| \  \ \   __  \   \ \    / / \ \  \\|__| \  \ \  \\\  \ \  \\ \  \     **
+**      \ \  \    \ \  \ \  \ \  \   \/  /  /   \ \  \    \ \  \ \  \\\  \ \  \\ \  \    **
+**       \ \__\    \ \__\ \__\ \__\__/  / /      \ \__\    \ \__\ \_______\ \__\\ \__\   **
+**        \|__|     \|__|\|__|\|__|\___/ /        \|__|     \|__|\|_______|\|__| \|__|   **
+**                                \|___|/                                                **
+**                                                                                       **
+**                                                                                       **
+**                    https://www.youtube.com/user/MerakliMaymunn                        **
+**                                                                                       **
+**            SONAR - ÇAĞAN ÇELİK TARAFINDAN TASARLANIP & PROGRAMLANMIŞTIR.              **
+**                   KAYNAK GÖSTERMEK ŞARTIYLA ÖZGÜRCE PAYLAŞABİLİR,                     **
+**               TİCARİ VEYA BİREYSEL PROJELERİNİZDE KULLANABİLİRSİNİZ...                **
+**                                    Bu taslakta;                                       **
+**       Henning Karlsen tarafından yazılan 5110 LCD grafik kütüphanesinden,             **
+**              http://henningkarlsen.com/electronics/library.php?id=47                  **
+**         Arduino IDE ile birlikte gelen Servo motor kütüphanesinden (Servo.h),         **
+**                                                                                       **
+**       Jaidyn Edwards tarafından yazılan HC-SR04 Ultrasonik sensör örnek kodundan      **
+**                             http://youtu.be/PG2VhpkPqoA                               **
+**                                  faydalanılmıştır...                                  **
+**                                                                                       **
+**         İşinize yaradıysa bir gün karşılaştığımızda bir biranızı içerim. ;)           **
+**                                                                                       **
+*******************************************************************************************
+*/
+
+// ÖNEMLİ NOT: Bu projede Arduino Pro Mini modeli kullanılmıştır. Pro Mini modeli Uno'dan
+// farklı olsa da Uno sahibi olan kullanıcıların bu projeyi yapmalarının önünde hiçbir
+// engel yoktur. En nihayetinde iki model de aynı mikro kontrolcüyü barındırmaktadır.
+// Pro Mini'den farklı olarak Uno'da 3.3 ve 5v çıkışları vardır. O sebeple
+// Pro Mini'de bileşenlere güç vermek için zorunlu olarak dijital çıkışlardan faydalanılmıştır.
+// Uno kullanıcıları bunları 3.3 veya 5v ile değiştirebilirler.
+
+
+
+
+#include <LCD5110_Graph.h> //5110 LCD kütüphanesini taslağımıza dahil ediyoruz.
+#include <Servo.h> //Servo kütüphanesini taslağımıza dahil ediyoruz.
+Servo myservo; //Servo motoru kontrol etmek için "myservo" adında bir obje yaratıyoruz.
+int poz = 0; //Poziyon bilgisini saklamak için "poz" adında bir değişken tanımlıyoruz.
+LCD5110 myGLCD(8,9,10,11,12); //5110 ekranın hangi pinlere bağlı olduğunu belirtiyoruz.
+extern uint8_t TinyFont[]; //5110 kütüphanesindeki TintFont (Minik Font)u kullanmamız için onu tanıtıyoruz.
+extern uint8_t snr[]; //Açılıştaki Sonar resmini tanıtıyoruz.
+
+void setup() {
+  Serial.begin(9600);
+  myGLCD.InitLCD(); // LCD ekranı başlatıyoruz.
+  pinMode(5, OUTPUT); //Arduino Pro Mini'de 3.3v ya da 5v güç çıkışı bulunmadığı ...
+                      //için standart giriş çıkış pinlerini bu amaçla kullanıyoruz.
+                      //Burada 5 numaralı pini çıkış olarak ayarlıyoruz. Bu pin 5110 LCD'ye...
+                      //güç vermek için kullanılacak.
+  pinMode(7, OUTPUT); //5110 LCD'nin arkaplan ışığını yakmak için güç aldığımız dijital pin. Çıkış olarak ayarlıyoruz.
+  pinMode(2, OUTPUT); // Ultrasonik ses dalgasını gönderme komutunu bu pinle yapacağız.
+  pinMode(6, INPUT); // Geri gelen ses dalgalarını bu pinden algılayacağız.
+  pinMode(4, OUTPUT); //Ultrasonik sensörün Vcc pinini Arduino'nun 4. pinine bağladık.
+  digitalWrite(4, HIGH); //Ultrasonik sensöre güç veriyoruz.
+  digitalWrite(5,HIGH);//5110'a güç veriyoruz.
+  digitalWrite(7,HIGH);//5110 arkaplan ışığına güç veriyoruz.
+  myservo.attach(3);  //Servo motorumuzun 3. pine bağlı olduğunu bildiriyoruz.
+ 
+  // AÇILIŞ ANİMASYONU
+  myGLCD.drawBitmap(0,0,snr,84,48); //Sonar resmini gösteriyoruz.
+  myGLCD.update(); //Resmin gözükebilmesi için ekranı güncelliyoruz.
+  delay(3000); //3 saniye bekledikten sonra
+  myGLCD.clrScr(); //Ekranı temizliyoruz...
+}
+ 
+void loop() {
+  
+int sure, mesafe; //Ultrasonik sensörle kullanmak üzere 2 adet değişken tanımladık.
+int koordinat;
+
+  for(poz = -50; poz <= 103; poz += 1) {  
+    
+   //Yukarıda tüm olayın belkemiğini oluşturan döngümüzü görüyorsunuz. 
+   //For döngüsü ile Arduino'nun -50'den 103'e kadar teker teker saymasını ve 103'e ulaştıktan
+   //sonra tekrar başa dönmesini ve tekrar saymasını söylüyoruz. For döngüsü içine yazdığımız
+   //switch kodu ile her sayıda ayrı bir eylem yaptırıyoruz. Bu eylemler hem
+   //ekranın solundan sağına giden çizgi, hem servo motorun hareketi, hem de ultrasonik
+   //sensörden alınan verilerin incelenerek ekrana yansıtılmasıdır.
+   
+    digitalWrite(2,HIGH); // Ultrasonik sensörün bir dalga yollayan hoparlörüne güç vererek ultrasonik bir ses dalgası göndermesini sağlıyoruz.
+    delayMicroseconds(1000); // Çok kısa bir süre veriyoruz bu dalganın gitmesi için.
+    digitalWrite(2, LOW); // Sonra pine giden gücü keserek bu dalgayı göndermeyi durduruyoruz.
+    sure = pulseIn(6,HIGH); // Sonra PulseIn komutuyla yakındaki objelere çarpıp Echo pinine ulaşan dalgaları tesbit edip "süre" değişkenimize yazdırıyoruz.
+   Serial.println(sure);
+   
+    //Önlem
+    //Aşağıdaki önlem sensörün maks. menzili olan 4 metreden uzak alanlara doğru tutulması 
+    // durumunda sensörden gelen yanlış bilgiyi düzeltmek içindir.
+    if (sure <= 0) {
+      mesafe=400; 
+    }
+    else {
+    mesafe = (sure/2) / 29.1; // Gerçek mesafeyi bulabilmek için geçen sureyi 2'ye ve ardından ses hızına bölmeliyiz.
+    }
+    //Önlem bitti.
+    
+      switch (poz) {                         
+                 case -50:
+         myservo.write(166); 
+         myGLCD.clrLine(83,46,60,46); 
+         myGLCD.drawLine(0,46,25,46); 
+          break;
+                   case -49:
+         myGLCD.clrLine(0,46,25,46);  
+         myGLCD.drawLine(0,45,25,46); 
+         break;
+                   case -48:
+         myGLCD.clrLine(0,45,25,46);
+         myGLCD.drawLine(0,44,25,46);
+          break;
+                   case -47:
+         myGLCD.clrLine(0,44,25,46);
+         myGLCD.drawLine(0,43,25,46);
+          break;
+                   case -46:
+         myGLCD.clrLine(0,43,25,46);
+         myGLCD.drawLine(0,42,25,46);
+          break;
+                   case -45:
+         myGLCD.clrLine(0,42,25,46);
+         myGLCD.drawLine(0,41,25,46);
+          break;
+                   case -44:
+         myGLCD.clrLine(0,41,25,46);
+         myGLCD.drawLine(0,40,25,46);
+          break;
+                   case -43:
+         myGLCD.clrLine(0,40,25,46);
+         myGLCD.drawLine(0,39,25,46);
+          break;
+                   case -42:
+         myGLCD.clrLine(0,39,25,46);
+         myGLCD.drawLine(0,38,25,46);
+          break;
+                   case -41:
+         myGLCD.clrLine(0,38,25,46);
+         myGLCD.drawLine(0,37,25,46);
+          break;
+                   case -40:
+         myGLCD.clrLine(0,37,25,46);
+         myGLCD.drawLine(0,36,25,46);
+          break;
+                   case -39:
+         myGLCD.clrLine(0,36,25,46);
+         myGLCD.drawLine(0,35,25,46);
+          break;
+                   case -38:
+         myGLCD.clrLine(0,35,25,46);
+         myGLCD.drawLine(0,34,25,46);
+          break;
+                   case -37:
+         myGLCD.clrLine(0,34,25,46);
+         myGLCD.drawLine(0,33,25,46);
+          break;
+                   case -36:
+         myGLCD.clrLine(0,33,25,46);
+         myGLCD.drawLine(0,32,25,46);
+          break;
+                   case -35:
+         myGLCD.clrLine(0,32,25,46);
+         myGLCD.drawLine(0,31,25,46);
+          break;
+          case -34:
+          myGLCD.clrLine(0,31,25,46);
+          myGLCD.drawLine(0,30,25,46);
+          break;
+          case -33:
+          myGLCD.clrLine(0,30,25,46);
+          myGLCD.drawLine(0,29,25,46);
+          break;
+          case -32:
+          myGLCD.clrLine(0,29,25,46);
+          myGLCD.drawLine(0,28,25,46);
+          break;
+          case -31:
+          myGLCD.clrLine(0,28,25,46);
+          myGLCD.drawLine(0,27,25,45);
+          break;
+          case -30:   
+          myGLCD.clrLine(0,27,25,45);
+           myGLCD.drawLine(0,26,25,45);
+      break;
+      case -29:
+      myGLCD.clrLine(0,26,25,45);
+       myGLCD.drawLine(0,25,25,45);  
+      break;
+      case -28:
+      myGLCD.clrLine(0,25,25,45);
+       myGLCD.drawLine(0,24,26,45);
+      break;
+      case -27:
+      myGLCD.clrLine(0,24,26,45);
+       myGLCD.drawLine(0,23,26,44);
+      break;
+      case -26:
+      myGLCD.clrLine(0,23,26,44);
+      myGLCD.drawLine(0,22,26,44);
+      break;
+      case -25:
+      myGLCD.clrLine(0,22,26,44);
+      myGLCD.drawLine(0,21,26,44);
+      break;
+      case -24:
+      myGLCD.clrLine(0,21,26,44);
+      myGLCD.drawLine(0,20,26,44);
+      break;
+      case -23:
+      myGLCD.clrLine(0,20,26,44);
+      myGLCD.drawLine(0,19,26,43);
+      break;
+      case -22:
+      myGLCD.clrLine(0,19,26,43);
+       myGLCD.drawLine(0,18,26,43);
+      break;
+      case -21:
+      myGLCD.clrLine(0,18,26,43);
+       myGLCD.drawLine(1,17,27,43);
+      break;
+      case -20:
+      myGLCD.clrLine(1,17,27,43);
+       myGLCD.drawLine(2,16,27,43);
+        koordinat = map(mesafe,2,400,46,17); //HC-SR04'ün datasheet'inde minimum 2cm, maksimum 4m mesafesi olduğu yazıyor. Biz de maksimum ve minimumuzu ona göre ayarlıyoruz.
+        koordinat= constrain(koordinat, 17,46); // Sensörde olası bir hataya karşı raporlanan değerleri sınırlandırıyoruz.   
+        myGLCD.setPixel(0,koordinat);             
+        
+      break;
+      case -19:
+      myGLCD.clrLine(2,16,27,43);
+       myGLCD.drawLine(3,15,28,42);
+       koordinat = map(mesafe,2,400,46,16);
+       koordinat= constrain(koordinat, 16,46);
+       myGLCD.setPixel(1,koordinat);
+       myservo.write(164); 
+      break;
+      case -18:
+      myGLCD.clrLine(3,15,28,42);
+     myGLCD.drawLine(4,15,28,42);
+
+      break;
+      case -17:
+      myGLCD.clrLine(4,15,28,42);
+       myGLCD.drawLine(5,14,28,42);
+       koordinat = map(mesafe,2,400,46,16);
+       koordinat= constrain(koordinat, 16,46);
+       myGLCD.setPixel(2,koordinat);
+       myservo.write(162);
+      break;
+      case -16:
+      myGLCD.clrLine(5,14,28,42);
+       myGLCD.drawLine(6,13,28,42);
+       koordinat = map(mesafe,2,400,46,15);
+       koordinat= constrain(koordinat, 15,46);
+      myGLCD.setPixel(3,koordinat); 
+      myservo.write(160);
+      break;
+      case -15:
+      myGLCD.clrLine(6,13,28,42);
+        myGLCD.drawLine(7,13,28,42);
+
+      break;
+      case -14:
+      myGLCD.clrLine(7,13,28,42);
+      myGLCD.drawLine(8,12,28,42);
+      koordinat = map(mesafe,2,400,45,15);
+      koordinat= constrain(koordinat, 15,45);
+       myGLCD.setPixel(4,koordinat);
+       myservo.write(158);
+      break;
+      case -13:
+      myGLCD.clrLine(8,12,28,42);
+       myGLCD.drawLine(9,12,28,43);
+       koordinat = map(mesafe,2,400,45,14);
+       koordinat= constrain(koordinat, 14,45);
+       myGLCD.setPixel(5,koordinat);
+       myservo.write(156);
+      break;
+      case -12:
+      myGLCD.clrLine(9,12,28,43);
+       myGLCD.drawLine(10,11,28,42);
+
+      break;
+      case -11:
+      myGLCD.clrLine(10,11,28,42);
+      myGLCD.drawLine(11,11,28,42);
+     koordinat = map(mesafe,2,400,45,14);
+     koordinat= constrain(koordinat, 14,45);
+       myGLCD.setPixel(6,koordinat);
+       myservo.write(154);
+      break;
+        case -10:
+        myGLCD.clrLine(11,11,28,42);
+        myGLCD.drawLine(12,11,29,42);
+      koordinat = map(mesafe,2,400,45,13);
+      koordinat= constrain(koordinat, 13,45);
+      myGLCD.setPixel(7,koordinat);
+      myservo.write(152);
+      break;
+      case -9:
+       myGLCD.clrLine(12,11,29,42);
+       myGLCD.drawLine(13,10,30,41);
+
+      break;
+      case -8:
+      myGLCD.clrLine(13,10,30,41);
+      myGLCD.drawLine(14,10,30,41); 
+        koordinat = map(mesafe,2,400,44,13);
+        koordinat= constrain(koordinat, 13,44);
+       myGLCD.setPixel(8,koordinat);
+       myservo.write(150);
+      break;
+        case -7:
+        myGLCD.clrLine(14,10,30,41);
+        myGLCD.drawLine(15,10,30,41);
+      koordinat = map(mesafe,2,400,44,12);
+      koordinat= constrain(koordinat, 12,44);
+       myGLCD.setPixel(9,koordinat);
+       myservo.write(148);
+      break;
+      case -6:
+      myGLCD.clrLine(15,10,30,41);
+      myGLCD.drawLine(16,9,31,40);
+
+      break;
+      case -5:
+      myGLCD.clrLine(16,9,31,40);
+      myGLCD.drawLine(17,9,31,40);
+       koordinat = map(mesafe,2,400,44,12);
+       koordinat= constrain(koordinat, 12,44);
+       myGLCD.setPixel(10,koordinat);
+       myservo.write(146);
+      break;
+      case -4:
+      myGLCD.clrLine(17,9,31,40);
+      myGLCD.drawLine(18,9,31,40);
+      koordinat = map(mesafe,2,400,44,11);
+      koordinat= constrain(koordinat, 11,44);
+       myGLCD.setPixel(11,koordinat);  
+       myservo.write(144);
+      break;
+      case -3:
+      myGLCD.clrLine(18,9,31,40);
+      myGLCD.drawLine(19,9,32,40);
+
+      break;
+      case -2:
+      myGLCD.clrLine(19,9,32,40);
+       myGLCD.drawLine(20,9,32,40);
+      koordinat = map(mesafe,2,400,43,11);
+      koordinat= constrain(koordinat, 11,43);
+      myGLCD.setPixel(12,koordinat); 
+      myservo.write(142);
+      break;
+      case -1:
+      myGLCD.clrLine(20,9,32,40);
+      myGLCD.drawLine(21,8,32,40);
+      koordinat = map(mesafe,2,400,43,11);
+      koordinat= constrain(koordinat, 11,43);
+      myGLCD.setPixel(13,koordinat);
+      myservo.write(140);
+      break;
+        case 0:
+        myGLCD.clrLine(21,8,32,40);
+      myGLCD.drawLine(22,8,33,39);
+
+      break;
+      case 1:
+      myGLCD.clrLine(22,8,33,39);
+      myGLCD.drawLine(23,8,33,39);
+       koordinat = map(mesafe,2,400,43,10);
+       koordinat= constrain(koordinat, 10,43);
+       myGLCD.setPixel(14,koordinat);
+       myservo.write(138);
+      break;
+      case 2:
+      myGLCD.clrLine(23,8,33,39);
+      myGLCD.drawLine(24,8,34,39);
+       koordinat = map(mesafe,2,400,43,10);
+       koordinat= constrain(koordinat, 10,43);
+       myGLCD.setPixel(15,koordinat);
+      myservo.write(136); 
+      break;
+        case 3:
+       myGLCD.clrLine(24,8,34,39);
+       myGLCD.drawLine(25,8,34,39);
+
+      break;
+      case 4:
+      myGLCD.clrLine(25,8,34,39);
+      myGLCD.drawLine(26,8,34,38);
+        koordinat = map(mesafe,2,400,42,10);
+        koordinat= constrain(koordinat, 10,42);
+        myGLCD.setPixel(16,koordinat);
+        myservo.write(134);
+      break;
+      case 5:
+      myGLCD.clrLine(26,8,34,38);
+      myGLCD.drawLine(27,7,35,38);
+      koordinat = map(mesafe,2,400,42,10);
+      koordinat= constrain(koordinat, 10,42);
+      myGLCD.setPixel(17,koordinat);
+      myservo.write(132);
+      break;
+      case 6:
+      myGLCD.clrLine(27,7,35,38);
+      myGLCD.drawLine(28,7,35,37);
+
+      break;
+      case 7:
+      myGLCD.clrLine(28,7,35,37);
+      myGLCD.drawLine(29,7,36,37);
+      koordinat = map(mesafe,2,400,42,9);
+      koordinat= constrain(koordinat, 9,42);
+      myGLCD.setPixel(18,koordinat);
+      myservo.write(130);
+      break;
+      case 8:
+      myGLCD.clrLine(29,7,36,37);
+      myGLCD.drawLine(30,7,36,37);
+      koordinat = map(mesafe,2,400,42,9);
+      koordinat= constrain(koordinat, 9,42);
+      myGLCD.setPixel(19,koordinat);
+      myservo.write(128);
+      break;
+      case 9:
+      myGLCD.clrLine(30,7,36,37);
+      myGLCD.drawLine(31,7,37,37);
+
+      break;
+      case 10:
+      myGLCD.clrLine(31,7,37,37);
+      myGLCD.drawLine(32,6,37,37);
+      koordinat = map(mesafe,2,400,41,9);
+      koordinat= constrain(koordinat, 9,41);
+      myGLCD.setPixel(20,koordinat);
+      myservo.write(126);
+      break;
+      case 11:
+      myGLCD.clrLine(32,6,37,37);
+      myGLCD.drawLine(33,6,37,37);
+       koordinat = map(mesafe,2,400,41,9);
+       koordinat= constrain(koordinat, 9,41);
+       myGLCD.setPixel(21,koordinat);
+       myservo.write(124);
+      break;
+      case 12:
+      myGLCD.clrLine(33,6,37,37);
+      myGLCD.drawLine(34,6,37,37);
+
+      break;
+      case 13:
+      myGLCD.clrLine(34,6,37,37);
+      myGLCD.drawLine(35,6,38,37);
+       koordinat = map(mesafe,2,400,41,9);
+       koordinat= constrain(koordinat, 9,41);
+       myGLCD.setPixel(22,koordinat);
+       myservo.write(122);
+      break;
+      case 14: 
+      myGLCD.clrLine(35,6,38,37);
+      myGLCD.drawLine(36,6,38,37);
+      koordinat = map(mesafe,2,400,41,8);
+      koordinat= constrain(koordinat, 8,41);
+      myGLCD.setPixel(23,koordinat);
+       myservo.write(120);
+      break;
+      case 15:
+      myGLCD.clrLine(36,6,38,37);
+      myGLCD.drawLine(37,6,38,37);
+
+      break;
+      case 16:
+      myGLCD.clrLine(37,6,38,37);
+      myGLCD.drawLine(38,6,39,37);
+      koordinat = map(mesafe,2,400,40,8);
+      koordinat= constrain(koordinat,8,40);
+      myGLCD.setPixel(24,koordinat);
+      myservo.write(118);
+      break;
+      case 17:
+      myGLCD.clrLine(38,6,39,37);
+      myGLCD.drawLine(39,6,39,37);
+        koordinat = map(mesafe,2,400,40,8);
+        koordinat= constrain(koordinat, 8,40);
+        myGLCD.setPixel(25,koordinat);
+       myservo.write(116);
+      break;
+      case 18:
+      myGLCD.clrLine(39,6,39,37);
+      myGLCD.drawLine(40,6,39,37);
+
+      break;
+      case 19:
+      myGLCD.clrLine(40,6,39,37);
+      myGLCD.drawLine(41,6,40,37);
+        koordinat = map(mesafe,2,400,40,8);
+        koordinat= constrain(koordinat, 8,40);
+        myGLCD.setPixel(26,koordinat);
+        myservo.write(114);
+      break;
+      case 20:
+      myGLCD.clrLine(41,6,40,37);
+      myGLCD.drawLine(42,6,40,37);
+      koordinat = map(mesafe,2,400,40,8);
+      koordinat= constrain(koordinat, 8,40);
+      myGLCD.setPixel(27,koordinat);
+      myservo.write(112);
+      break;
+      case 21:
+      myGLCD.clrLine(42,6,40,37);
+      myGLCD.drawLine(43,6,40,37);
+      break;
+      case 22:
+      myGLCD.clrLine(43,6,40,37);
+      myGLCD.drawLine(44,6,41,37);
+      koordinat = map(mesafe,2,400,39,8);
+      koordinat= constrain(koordinat, 8,39);
+      myGLCD.setPixel(28,koordinat);
+      myservo.write(110);
+      break;
+      case 23:
+      myGLCD.clrLine(44,6,41,37);
+      myGLCD.drawLine(45,6,41,37);
+      koordinat = map(mesafe,2,400,39,7);
+      koordinat= constrain(koordinat, 7,39);
+      myGLCD.setPixel(29,koordinat);
+      myservo.write(108);
+      break;
+      case 24:
+      myGLCD.clrLine(45,6,41,37);
+      myGLCD.drawLine(46,6,41,37);
+
+      break;
+      case 25:
+      myGLCD.clrLine(46,6,41,37);
+      myGLCD.drawLine(47,6,42,37);
+      koordinat = map(mesafe,2,400,39,7);
+      koordinat= constrain(koordinat, 7,39);
+      myGLCD.setPixel(30,koordinat);
+      myservo.write(106);
+      break;
+      case 26:
+      myGLCD.clrLine(47,6,42,37);
+      myGLCD.drawLine(48,7,42,37);
+      koordinat = map(mesafe,2,400,39,7);
+      koordinat= constrain(koordinat, 7,39);
+      myGLCD.setPixel(31,koordinat);
+      myservo.write(104);
+      break;
+      case 27:
+      myGLCD.clrLine(48,7,42,37);
+      myGLCD.drawLine(49,7,42,37);
+      break;
+      case 28:
+      myGLCD.clrLine(49,7,42,37);
+      myGLCD.drawLine(50,7,43,37);
+        koordinat = map(mesafe,2,400,38,7);
+        koordinat= constrain(koordinat,7,38);
+        myGLCD.setPixel(32,koordinat);
+        myservo.write(102);
+      break;
+      case 29:
+      myGLCD.clrLine(50,7,43,37);
+      myGLCD.drawLine(51,7,44,37);
+      koordinat = map(mesafe,2,400,38,7);
+      koordinat= constrain(koordinat,7,38);
+      myGLCD.setPixel(33,koordinat);
+      myservo.write(100);
+      break;
+      case 30:
+      myGLCD.clrLine(51,7,44,37);
+      myGLCD.drawLine(52,7,44,37);
+
+      break;
+      case 31:
+      myGLCD.clrLine(52,7,44,37);
+      myGLCD.drawLine(53,8,45,37);
+        koordinat = map(mesafe,2,400,38,6);
+        koordinat= constrain(koordinat, 6,38);
+        myGLCD.setPixel(34,koordinat);
+        myservo.write(98);
+      break;
+      case 32:
+      myGLCD.clrLine(53,8,45,37);
+      myGLCD.drawLine(54,8,46,37);
+        koordinat = map(mesafe,2,400,38,6);
+        koordinat= constrain(koordinat, 6,38);
+        myGLCD.setPixel(35,koordinat);
+        myservo.write(96);
+      break;
+      case 33:
+      myGLCD.clrLine(54,8,46,37);
+      myGLCD.drawLine(55,8,46,37);
+
+      break;
+      case 34:
+      myGLCD.clrLine(55,8,46,37);
+      myGLCD.drawLine(56,8,47,37);
+        koordinat = map(mesafe,2,400,37,6);
+        koordinat= constrain(koordinat, 6,37);
+        myGLCD.setPixel(36,koordinat);
+       myservo.write(94);
+      break;
+      case 35:
+      myGLCD.clrLine(56,8,47,37);
+      myGLCD.drawLine(57,8,47,37);
+        koordinat = map(mesafe,2,400,37,6);
+        koordinat= constrain(koordinat, 6,37);
+        myGLCD.setPixel(37,koordinat);
+       myservo.write(92);
+      break;
+      case 36:
+      myGLCD.clrLine(57,8,47,37);
+      myGLCD.drawLine(58,8,47,37);
+
+      break;
+      case 37:
+      myGLCD.clrLine(58,8,47,37);
+       myGLCD.drawLine(59,9,47,38);
+        koordinat = map(mesafe,2,400,37,6);
+        koordinat= constrain(koordinat, 6,37);
+        myGLCD.setPixel(38,koordinat);
+        myservo.write(90);
+      break;
+      case 38:
+      myGLCD.clrLine(59,9,47,38);
+        myGLCD.drawLine(60,9,48,38);
+        koordinat = map(mesafe,2,400,37,6);
+        koordinat= constrain(koordinat, 6,37);
+        myGLCD.setPixel(39,koordinat);
+       myservo.write(88);
+      break;
+      case 39:
+      myGLCD.clrLine(60,9,48,38);
+       myGLCD.drawLine(61,9,48,38);
+      break;
+      case 40:
+      myGLCD.clrLine(61,9,48,38);
+       myGLCD.drawLine(62,9,49,38);
+         koordinat = map(mesafe,2,400,37,6);
+         koordinat= constrain(koordinat, 6,37);
+        myGLCD.setPixel(40,koordinat);
+        myservo.write(86);
+      break;
+      case 41:
+      myGLCD.clrLine(62,9,49,38);
+       myGLCD.drawLine(63,9,49,38);
+        koordinat = map(mesafe,2,400,37,6);
+        koordinat= constrain(koordinat, 6,37);
+        myGLCD.setPixel(41,koordinat);
+        myservo.write(84);
+      break;
+       case 42:
+       myGLCD.clrLine(63,9,49,38);
+       myGLCD.drawLine(64,10,50,39);
+
+      break;
+       case 43:
+       myGLCD.clrLine(64,10,50,39);
+       myGLCD.drawLine(65,10,51,39);
+        koordinat = map(mesafe,2,400,37,6);
+        koordinat= constrain(koordinat, 6,37);
+        myGLCD.setPixel(42,koordinat);
+        myservo.write(82);
+      break;
+       case 44:
+       myGLCD.clrLine(65,10,51,39);
+       myGLCD.drawLine(66,10,52,39);
+      koordinat = map(mesafe,2,400,37,6);
+      koordinat= constrain(koordinat, 6,37);
+      myGLCD.setPixel(43,koordinat);
+      myservo.write(80);
+      break;
+       case 45:
+       myGLCD.clrLine(66,10,52,39);
+       myGLCD.drawLine(67,10,52,39);
+      break;
+       case 46:
+       myGLCD.clrLine(67,10,52,39);
+       myGLCD.drawLine(68,11,52,40);
+        koordinat = map(mesafe,2,400,37,6);
+        koordinat= constrain(koordinat, 6,37);
+        myGLCD.setPixel(44,koordinat);
+        myservo.write(78);
+      break;
+       case 47:
+       myGLCD.clrLine(68,11,52,40);
+      myGLCD.drawLine(69,11,53,40);
+        koordinat = map(mesafe,2,400,37,6);
+        koordinat= constrain(koordinat, 6,37);
+        myGLCD.setPixel(45,koordinat);
+        myservo.write(76);
+      break;
+       case 48:
+       myGLCD.clrLine(69,11,53,40);
+      myGLCD.drawLine(70,11,53,41);
+
+      break;
+       case 49:
+       myGLCD.clrLine(70,11,53,41);
+      myGLCD.drawLine(71,12,53,41);
+        koordinat = map(mesafe,2,400,37,6);
+        koordinat= constrain(koordinat, 6,37);
+        myGLCD.setPixel(46,koordinat);
+        myservo.write(74);
+      break;
+       case 50:
+       myGLCD.clrLine(71,12,53,41);
+      myGLCD.drawLine(72,12,53,41);
+        koordinat = map(mesafe,2,400,37,6);
+        koordinat= constrain(koordinat,6,37);
+        myGLCD.setPixel(47,koordinat);
+        myservo.write(72);
+      break;
+       case 51:
+       myGLCD.clrLine(72,12,53,41);
+      myGLCD.drawLine(73,13,54,41);
+
+      break;
+      case 52:
+      myGLCD.clrLine(73,13,54,41);
+      myGLCD.drawLine(74,13,54,41);
+        koordinat = map(mesafe,2,400,38,6);
+        koordinat= constrain(koordinat, 6,38);
+        myGLCD.setPixel(48,koordinat);
+        myservo.write(70);
+      break;
+      case 53:
+      myGLCD.clrLine(74,13,54,41);
+      myGLCD.drawLine(75,14,54,41);
+        koordinat = map(mesafe,2,400,38,6);
+        koordinat= constrain(koordinat,6,38);
+        myGLCD.setPixel(49,koordinat);
+        myservo.write(68);
+      break;
+      case 54:
+      myGLCD.clrLine(75,14,54,41);
+      myGLCD.drawLine(76,14,54,41);
+
+      break;
+      case 55:
+      myGLCD.clrLine(76,14,54,41);
+      myGLCD.drawLine(77,15,55,41);
+        koordinat = map(mesafe,2,400,38,7);
+        koordinat= constrain(koordinat, 7,38);
+        myGLCD.setPixel(50,koordinat);
+        myservo.write(66);
+      break;
+      case 56:
+      myGLCD.clrLine(77,15,55,41);
+      myGLCD.drawLine(78,15,55,42);
+        koordinat = map(mesafe,2,400,38,7);
+        koordinat= constrain(koordinat, 7,38);
+        myGLCD.setPixel(51,koordinat);
+        myservo.write(64);
+      break;
+      case 57:
+      myGLCD.clrLine(78,15,55,42);
+      myGLCD.drawLine(79,16,55,42);
+
+      break;
+      case 58:
+      myGLCD.clrLine(79,16,55,42);
+      myGLCD.drawLine(80,16,55,42);
+        koordinat = map(mesafe,2,400,39,7);
+        koordinat= constrain(koordinat,7,39);
+        myGLCD.setPixel(52,koordinat);
+        myservo.write(62);
+      break;
+      case 59:
+      myGLCD.clrLine(80,16,55,42);
+      myGLCD.drawLine(81,16,56,42);
+        koordinat = map(mesafe,2,400,39,7);
+        koordinat= constrain(koordinat,7,39);
+        myGLCD.setPixel(53,koordinat);
+        myservo.write(60);
+      break;
+      case 60:
+      myGLCD.clrLine(81,16,56,42);
+      myGLCD.drawLine(82,17,56,42);
+
+      break;
+      case 61:
+      myGLCD.clrLine(82,17,56,42);
+      myGLCD.drawLine(83,18,56,42);
+        koordinat = map(mesafe,2,400,39,7);
+        koordinat= constrain(koordinat,7,39);
+        myGLCD.setPixel(54,koordinat);
+        myservo.write(58);
+      break;
+      case 62:
+      myGLCD.clrLine(83,18,56,42);
+      myGLCD.drawLine(83,19,56,43);
+        koordinat = map(mesafe,2,400,39,8);
+        koordinat= constrain(koordinat, 8,39);
+        myGLCD.setPixel(55,koordinat);
+        myservo.write(56);
+      break;
+      case 63:
+      myGLCD.clrLine(83,19,56,43);
+      myGLCD.drawLine(83,20,56,43);
+      break;
+      case 64:
+      myGLCD.clrLine(83,20,56,43);
+      myGLCD.drawLine(83,21,56,43);
+        koordinat = map(mesafe,2,400,40,8);
+        koordinat= constrain(koordinat, 8,40);
+        myGLCD.setPixel(56,koordinat);
+        myservo.write(54);
+      break;
+      case 65:
+      myGLCD.clrLine(83,21,56,43);
+      myGLCD.drawLine(83,22,57,43);
+      koordinat = map(mesafe,2,400,40,8);
+      koordinat= constrain(koordinat, 8,40);
+      myGLCD.setPixel(57,koordinat);
+      myservo.write(52);
+      break;
+      case 66:
+      myGLCD.clrLine(83,22,57,43);
+      myGLCD.drawLine(83,23,57,43);
+
+      break;
+      case 67:
+       myGLCD.clrLine(83,23,57,43);
+      myGLCD.drawLine(83,24,57,43);
+        koordinat = map(mesafe,2,400,40,8);
+        koordinat= constrain(koordinat, 8,40);
+        myGLCD.setPixel(58,koordinat);
+        myservo.write(50);
+      break;
+      case 68:
+      myGLCD.clrLine(83,24,57,43);
+      myGLCD.drawLine(83,25,57,43);
+      koordinat = map(mesafe,2,400,40,8);
+      koordinat= constrain(koordinat, 8,40);
+      myGLCD.setPixel(59,koordinat);
+      myservo.write(48);
+      break;
+      case 69:
+      myGLCD.clrLine(83,25,57,43);
+      myGLCD.drawLine(83,26,57,43);
+      break;
+      case 70:
+      myGLCD.clrLine(83,26,57,43);
+      myGLCD.drawLine(83,27,57,43);
+      koordinat = map(mesafe,2,400,41,8);
+      koordinat= constrain(koordinat, 8,41);
+      myGLCD.setPixel(60,koordinat);
+      myservo.write(46);
+      break;
+      case 71:
+      myGLCD.clrLine(83,27,57,43);
+      myGLCD.drawLine(83,28,58,44);
+        koordinat = map(mesafe,2,400,41,9);
+        koordinat= constrain(koordinat,9,41);
+        myGLCD.setPixel(61,koordinat);
+        myservo.write(44);
+      break;
+      case 72:
+      myGLCD.clrLine(83,28,58,44);
+      myGLCD.drawLine(83,29,58,44);
+
+      break;
+      case 73:
+      myGLCD.clrLine(83,29,58,44);
+      myGLCD.drawLine(83,30,58,44);
+        koordinat = map(mesafe,2,400,41,9);
+        koordinat= constrain(koordinat,9,41);
+        myGLCD.setPixel(62,koordinat);
+        myservo.write(42);
+      break;
+      case 74:
+      myGLCD.clrLine(83,30,58,44);
+      myGLCD.drawLine(83,31,59,45);
+      koordinat = map(mesafe,2,400,41,9);
+      koordinat= constrain(koordinat, 9,41);
+      myGLCD.setPixel(63,koordinat);
+      myservo.write(40);
+      break;
+      case 75:
+      myGLCD.clrLine(83,31,59,45);
+      myGLCD.drawLine(83,32,59,45);
+
+      break;
+      case 76:
+      myGLCD.clrLine(83,32,59,45);
+      myGLCD.drawLine(83,33,59,45);
+      koordinat = map(mesafe,2,400,42,9);
+      koordinat= constrain(koordinat, 9,42);
+      myGLCD.setPixel(64,koordinat);
+      myservo.write(38);
+      break;
+      case 77:
+      myGLCD.clrLine(83,33,59,45);
+      myGLCD.drawLine(83,34,59,45);
+      koordinat = map(mesafe,2,100,42,9);
+      koordinat= constrain(koordinat, 9,42);
+      myGLCD.setPixel(65,koordinat);
+      myservo.write(36);
+      break;
+      case 78:
+      myGLCD.clrLine(83,34,59,45);
+      myGLCD.drawLine(83,35,59,45);
+
+      break;
+      case 79:
+      myGLCD.clrLine(83,35,59,45);
+      myGLCD.drawLine(83,36,59,46);
+      koordinat = map(mesafe,2,400,42,10);
+      koordinat= constrain(koordinat, 10,42);
+       myGLCD.setPixel(66,koordinat);
+       myservo.write(34);
+      break;
+      case 80:
+      myGLCD.clrLine(83,36,59,46);
+      myGLCD.drawLine(83,37,59,46);
+      koordinat = map(mesafe,2,400,42,10);
+      koordinat= constrain(koordinat, 10,42);
+       myGLCD.setPixel(67,koordinat);
+       myservo.write(32);
+      break;
+      case 81:
+      myGLCD.clrLine(83,37,59,46);
+      myGLCD.drawLine(83,38,59,46);
+
+      break;
+      case 82:
+      myGLCD.clrLine(83,38,59,46);
+      myGLCD.drawLine(83,39,59,46);
+       koordinat = map(mesafe,2,400,43,10);
+       koordinat= constrain(koordinat, 10,43);
+       myGLCD.setPixel(68,koordinat);
+       myservo.write(30);
+      break;
+      case 83:
+      myGLCD.clrLine(83,39,59,46);
+      myGLCD.drawLine(83,40,60,46);
+      koordinat = map(mesafe,2,400,43,10);
+      koordinat= constrain(koordinat, 10,43);
+      myGLCD.setPixel(69,koordinat);
+      myservo.write(28);
+      break;
+      case 84:
+      myGLCD.clrLine(83,40,60,46);
+      myGLCD.drawLine(83,41,60,46);
+
+      break;
+      case 85:
+      myGLCD.clrLine(83,41,60,46);
+      myGLCD.drawLine(83,42,60,46);
+      koordinat = map(mesafe,2,400,43,11);
+      koordinat= constrain(koordinat, 11,43);
+      myGLCD.setPixel(70,koordinat);
+      myservo.write(26);
+      break;
+      case 86:
+     myGLCD.clrLine(83,42,60,46);
+      myGLCD.drawLine(83,43,60,46);
+      koordinat = map(mesafe,2,400,43,11);
+      koordinat= constrain(koordinat, 11,43);
+      myGLCD.setPixel(71,koordinat);
+      myservo.write(24);
+      break;
+      case 87:
+      myGLCD.clrLine(83,43,60,46);
+      myGLCD.drawLine(83,44,60,46);
+
+      break;
+      case 88:
+      myGLCD.clrLine(83,44,60,46);
+      myGLCD.drawLine(83,45,60,46);
+       koordinat = map(mesafe,2,400,44,11);
+       koordinat= constrain(koordinat, 11,44);
+       myGLCD.setPixel(72,koordinat);
+       myservo.write(22);
+      break;
+      case 89:
+      myGLCD.clrLine(83,45,60,46);
+      myGLCD.drawLine(83,46,60,46);
+        koordinat = map(mesafe,2,400,44,12);
+        koordinat= constrain(koordinat, 12,44);
+        myGLCD.setPixel(73,koordinat);
+        myservo.write(20);
+      break;
+      case 90:
+      myGLCD.clrLine(83,46,60,46);
+
+      break;
+      case 91:
+       koordinat = map(mesafe,2,400,44,12);
+       koordinat= constrain(koordinat, 12,44);
+        myGLCD.setPixel(74,koordinat);
+        myservo.write(18);
+       break;
+       case 92:
+      koordinat = map(mesafe,2,400,44,13);
+      koordinat= constrain(koordinat, 13,44);
+        myGLCD.setPixel(75,koordinat);
+        myservo.write(16);
+       break;
+       case 93:
+
+        break;
+        case 94:
+      koordinat = map(mesafe,2,400,45,13);
+      koordinat= constrain(koordinat, 13,45);
+        myGLCD.setPixel(76,koordinat);
+        myservo.write(14);
+        break;
+        case 95:
+        koordinat = map(mesafe,2,400,45,14);
+        koordinat= constrain(koordinat, 14,45);
+        myGLCD.setPixel(77,koordinat);
+        myservo.write(12);
+       break;
+        case 96:
+
+       break;
+      case 97:
+        koordinat = map(mesafe,2,400,45,14);
+        koordinat= constrain(koordinat, 14,45);
+        myGLCD.setPixel(78,koordinat);
+        myservo.write(10);
+       break;
+      case 98:
+         koordinat = map(mesafe,2,400,45,15);
+         koordinat= constrain(koordinat, 15,42);
+        myGLCD.setPixel(79,koordinat);
+        myservo.write(8);
+       break;
+        case 99:
+
+       break;
+        case 100:
+        koordinat = map(mesafe,2,400,46,15);
+        koordinat= constrain(koordinat,15,46);
+        myGLCD.setPixel(80,koordinat);
+        myservo.write(6);
+       break;
+        case 101:
+           koordinat = map(mesafe,5,400,46,16);
+           koordinat= constrain(koordinat, 16,46);
+        myGLCD.setPixel(81,koordinat);
+        myservo.write(4);
+       break;
+         case 102:
+
+       break;
+         case 103:
+           koordinat = map(mesafe,2,400,46,16);
+           koordinat= constrain(koordinat,16,46);
+        myGLCD.setPixel(82,koordinat);
+        myservo.write(2);
+       break;
+ 
+          case 104:
+        koordinat = map(mesafe,2,400,46,17);
+        koordinat= constrain(koordinat,17,46);
+        myGLCD.setPixel(83,koordinat);
+        myservo.write(0);
+       break;
+  
+      }        
+
+       
+//ALT BAR
+myGLCD.setPixel(27,46);
+myGLCD.setPixel(28,45);
+myGLCD.setPixel(29,44);
+myGLCD.setPixel(30,43);
+myGLCD.setPixel(31,42);
+myGLCD.setPixel(32,42);
+myGLCD.setPixel(33,41);
+myGLCD.setPixel(34,41);
+myGLCD.setPixel(35,40);
+myGLCD.setPixel(36,40);
+myGLCD.drawLine(37,39,47,39); 
+myGLCD.setPixel(48,40);
+myGLCD.setPixel(49,40);
+myGLCD.setPixel(50,41);
+myGLCD.setPixel(51,41);
+myGLCD.setPixel(52,42);
+myGLCD.setPixel(53,42);
+myGLCD.setPixel(54,43);
+myGLCD.setPixel(55,44);
+myGLCD.setPixel(56,45);
+myGLCD.setPixel(57,46);
+//Bitti
+
+//ALT BAR'IN İÇİNİ DOLDUR.
+//İLK SIRA
+myGLCD.drawLine(28,46,57,46);
+//Bitti
+
+//İKİNCİ SIRA
+myGLCD.drawLine(28,45,56,45);
+//Bitti
+
+//ÜÇÜNCÜ SIRA
+myGLCD.drawLine(29,44,55,44);
+//Bitti
+
+//DÖRDÜNCÜ SIRA
+myGLCD.drawLine(30,43,54,43);
+//Bitti
+
+//BEŞİNCİ SIRA
+myGLCD.drawLine(31,42,53,42);
+//Bitti
+
+//ALTINCI SIRA
+myGLCD.drawLine(33,41,51,41);
+//Bitti
+
+//YEDİNCİ SIRA
+myGLCD.drawLine(35,40,49,40);
+//Bitti
+
+//ÜST BAR
+myGLCD.setPixel(0,15);
+myGLCD.setPixel(1,14);
+myGLCD.setPixel(2,14);
+myGLCD.setPixel(3,13);
+myGLCD.setPixel(4,13);
+myGLCD.setPixel(5,12);
+myGLCD.setPixel(6,12);
+myGLCD.setPixel(7,11);
+myGLCD.setPixel(8,11);
+myGLCD.setPixel(9,10);
+myGLCD.setPixel(10,10);
+myGLCD.setPixel(11,9);
+myGLCD.setPixel(12,9);
+myGLCD.setPixel(13,9);
+myGLCD.setPixel(14,8);
+myGLCD.setPixel(15,8);
+myGLCD.setPixel(16,8);
+myGLCD.setPixel(17,8);
+myGLCD.setPixel(18,7);
+myGLCD.setPixel(19,7);
+myGLCD.setPixel(20,7);
+myGLCD.setPixel(21,7);
+myGLCD.setPixel(22,7);
+myGLCD.setPixel(23,6);
+myGLCD.setPixel(24,6);
+myGLCD.setPixel(25,6);
+myGLCD.setPixel(26,6);
+myGLCD.setPixel(27,6);
+myGLCD.setPixel(28,6);
+myGLCD.setPixel(29,5);
+myGLCD.setPixel(30,5);
+myGLCD.setPixel(31,5);
+myGLCD.setPixel(32,5);
+myGLCD.setPixel(33,5);
+myGLCD.drawLine(34,4,49,4); 
+myGLCD.setPixel(50,5);
+myGLCD.setPixel(51,5);
+myGLCD.setPixel(52,5);
+myGLCD.setPixel(53,5);
+myGLCD.setPixel(54,5);
+myGLCD.setPixel(55,6);
+myGLCD.setPixel(56,6);
+myGLCD.setPixel(57,6);
+myGLCD.setPixel(58,6);
+myGLCD.setPixel(59,6);
+myGLCD.setPixel(60,6);
+myGLCD.setPixel(61,7);
+myGLCD.setPixel(62,7);
+myGLCD.setPixel(63,7);
+myGLCD.setPixel(64,7);
+myGLCD.setPixel(65,7);
+myGLCD.setPixel(66,8);
+myGLCD.setPixel(67,8);
+myGLCD.setPixel(68,8);
+myGLCD.setPixel(69,8);
+myGLCD.setPixel(70,9);
+myGLCD.setPixel(71,9);
+myGLCD.setPixel(72,9);
+myGLCD.setPixel(73,10);
+myGLCD.setPixel(74,10);
+myGLCD.setPixel(75,11);
+myGLCD.setPixel(76,11);
+myGLCD.setPixel(77,12);
+myGLCD.setPixel(78,12);
+myGLCD.setPixel(79,13);
+myGLCD.setPixel(80,13);
+myGLCD.setPixel(81,14);
+myGLCD.setPixel(82,14);
+myGLCD.setPixel(83,15);
+//Bitti
+
+
+//ÜST BAR'IN İÇİNİ DOLDUR...
+//İLK SIRA
+myGLCD.drawLine(0,0,83,0);
+//Bitti
+
+
+//İKİNCİ SIRA
+myGLCD.drawLine(0,1,83,1);
+//Bitti
+
+
+//ÜÇÜNCÜ SIRA
+myGLCD.drawLine(0,2,83,2);
+//Bitti
+
+
+//DÖRDÜNCÜ SIRA
+myGLCD.drawLine(0,3,83,3);
+//Bitti
+
+
+// BEŞİNCİ SIRA
+myGLCD.drawLine(0,4,34,4);
+myGLCD.drawLine(50,4,83,4);
+//Bitti
+
+//ALTINCI SIRA
+myGLCD.drawLine(0,5,29,5);
+myGLCD.drawLine(55,5,83,5);
+//Bitti
+
+
+//YEDİNCİ SIRA
+myGLCD.drawLine(0,6,23,6);
+myGLCD.drawLine(60,6,83,6);
+//Bitti
+
+//SEKİZİNCİ SIRA
+myGLCD.drawLine(0,7,20,7);
+myGLCD.drawLine(66,7,83,7);
+//Bitti
+
+//DOKUZUNCU SIRA
+myGLCD.drawLine(0,8,14,8);
+myGLCD.drawLine(70,8,83,8);
+//Bitti
+
+//ONUNCU SIRA
+myGLCD.drawLine(0,9,12,9);
+myGLCD.drawLine(72,9,83,9);
+//Bitti
+
+
+//ONBİRİNCİ SIRA
+myGLCD.drawLine(0,10,9,10);
+myGLCD.drawLine(75,10,83,10);
+//Bitti
+
+//ONİKİNCİ SIRA
+myGLCD.drawLine(0,11,7,11);
+myGLCD.drawLine(77,11,83,11);
+//Bitti
+
+//ONÜÇÜNCÜ SIRA
+myGLCD.drawLine(0,12,5,12);
+myGLCD.drawLine(79,12,83,12);
+//Bitti
+
+
+//ONDÖRDÜNCÜ SIRA
+myGLCD.drawLine(0,13,3,13);
+myGLCD.drawLine(81,13,83,13);
+//Bitti
+
+//ON BEŞİNCİ SIRA
+myGLCD.setPixel(0,14);
+myGLCD.drawLine(83,0,83,16);
+//Bitti
+
+// Aşağıdaki kod ekranın alt orta kısmında duran ve sensörün tespit ettiği
+// o an ki uzaklığı gösteren sayıları yazdırmak içindir.
+
+       myGLCD.setFont(TinyFont);  //Minik font kullanacağımızı belirtiyoruz.
+       myGLCD.invertText(true); //Siyah üstüne beyaz metin yazacağımızı belirtiyoruz.
+       myGLCD.printNumI(mesafe,CENTER,41); //Mesafe değişkenini ekranın alt&orta kısmına yazdırıyoruz.
+       myGLCD.update(); //Değişikliklerin ekrana yansıtılması için ekranı güncelliyoruz.
+          
+        delay(100); //Bu kadar yoğun işlemin Arduino'yu yormaması için biraz gecikme komutu kullanıyoruz.
+      
+      }
+ 
+ myGLCD.clrScr(); // Önceki kalıntılardan kurtulmak için ekranı temizliyoruz.
+  }
